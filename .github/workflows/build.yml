@@ -1,28 +1,17 @@
-name: Build APK
-on:
-  push:
-    branches: [ main ]
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v5
-        with:
-          distribution: 'zulu'
-          java-version: '17'
-      - name: Install Flutter manually
-        run: |
-          git clone https://github.com/flutter/flutter.git -b stable --depth 1 $HOME/flutter
-          echo "$HOME/flutter/bin" >> $GITHUB_PATH
-      - name: Build APK
-        run: |
-          flutter --version
-          flutter doctor
-          ls -la
-          flutter pub get
-          flutter build apk --release --verbose
-      - uses: actions/upload-artifact@v4
-        with:
-          name: release
-          path: build/app/outputs/flutter-apk/app-release.apk
+name: trading_eye
+description: BankNifty Trading Eye
+publish_to: 'none'
+version: 1.0.0+1
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.2.0
+  cupertino_icons: ^1.0.6
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+flutter:
+  uses-material-design: true

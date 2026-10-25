@@ -1,75 +1,70 @@
-import 'package:flutter/material.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-
-void main() => runApp(MaterialApp(home: TradingScreen(), theme: ThemeData.dark(), debugShowCheckedModeBanner: false));
-
-class TradingScreen extends StatefulWidget {
-  @override
-  _TradingScreenState createState() => _TradingScreenState();
+<!DOCTYPE html>
+<html lang="mr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trading Eye PRO</title>
+<style>
+*{box-sizing:border-box} body{margin:0;background:#08111f;color:white;font-family:Arial,sans-serif}
+header{background:#111f33;padding:20px;text-align:center;border-bottom:2px solid #00d9a5}
+header h1{margin:0;color:#00e6ad} header p{color:#a8b9ce;margin-bottom:0}
+.container{padding:15px;max-width:600px;margin:auto}
+.card{background:#122139;border:1px solid #263c59;border-radius:12px;padding:16px;margin-bottom:15px}
+h2{color:#00e6ad;font-size:18px;margin-top:0}
+label{display:block;margin-top:12px;color:#cbd8e8;font-size:14px}
+input{width:100%;padding:12px;margin-top:6px;background:#07101d;color:white;border:1px solid #344967;border-radius:7px;font-size:16px}
+button{width:100%;padding:14px;margin-top:15px;border:none;border-radius:8px;background:#00d9a5;color:#06131b;font-size:16px;font-weight:bold;cursor:pointer}
+.result{background:#07101d;padding:15px;margin-top:12px;border-radius:8px;line-height:1.8}
+.green{color:#00efa9;font-weight:bold} .red{color:#ff6377;font-weight:bold} .yellow{color:#ffd166;font-weight:bold}
+footer{text-align:center;padding:20px;color:#8295ad;font-size:12px}
+</style>
+</head>
+<body>
+<header><h1>👁️ TRADING EYE</h1><p>ORB PRO • NIFTY • CE / PE</p></header>
+<div class="container">
+    <div class="card">
+        <h2>📊 ORB Market Analysis</h2>
+        <label>Opening Range High</label><input type="number" id="orbHigh" placeholder="उदा. 23150">
+        <label>Opening Range Low</label><input type="number" id="orbLow" placeholder="उदा. 23100">
+        <label>सध्याचा NIFTY Spot Price</label><input type="number" id="spot" placeholder="सध्याची किंमत">
+        <label>Breakout नंतरची Candle Close Price</label><input type="number" id="closePrice" placeholder="Close">
+        <button onclick="analyzeMarket()">ANALYZE MARKET</button>
+        <div class="result" id="marketResult">Market data टाका आणि Analyze करा.</div>
+    </div>
+    <div class="card">
+        <h2>💰 Option Premium Planner</h2>
+        <label>Option Premium Entry (₹)</label><input type="number" id="premium" placeholder="उदा. 100">
+        <label>Stop Loss किती टक्के? (%)</label><input type="number" id="slPercent" value="20">
+        <label>Risk : Reward (Target 1)</label><input type="number" id="rr" value="1.5" step="0.5">
+        <button onclick="calculatePremium()">CALCULATE ENTRY / SL / TARGET</button>
+        <div class="result" id="premiumResult">Premium ची किंमत टाकून गणना करा.</div>
+    </div>
+    <div class="card"><h2>🛡️ False Breakout Filter</h2><p>फक्त Range च्या बाहेर Price गेली म्हणून लगेच ट्रेड घेऊ नका. पूर्ण झालेल्या Candle चा Close आणि पुढील Price Action तपासा.</p><p class="yellow">ORB हा एकटाच खात्रीशीर Buy/Sell Signal नाही.</p></div>
+</div>
+<footer>TRADING EYE PRO • Educational Tool<br>Live market data connected नाही.</footer>
+<script>
+function analyzeMarket(){
+    const high=Number(document.getElementById("orbHigh").value);
+    const low=Number(document.getElementById("orbLow").value);
+    const spot=Number(document.getElementById("spot").value);
+    const close=Number(document.getElementById("closePrice").value);
+    const result=document.getElementById("marketResult");
+    if(!high||!low||!spot||!close||high<=low){result.innerHTML='<span class="yellow">कृपया योग्य Market Prices भरा.</span>';return;}
+    if(close>high && spot>high){result.innerHTML='<span class="green">ORB BULLISH BREAKOUT</span><br>संभाव्य Bias: BUY CE<br>Range High: '+high.toFixed(2)+'<br>Spot: '+spot.toFixed(2)+'<br>Candle Close: '+close.toFixed(2)+'<br><span class="yellow">Entry आधी Retest, SL आणि Risk तपासा.</span>';}
+    else if(close<low && spot<low){result.innerHTML='<span class="red">ORB BEARISH BREAKDOWN</span><br>संभाव्य Bias: BUY PE<br>Range Low: '+low.toFixed(2)+'<br>Spot: '+spot.toFixed(2)+'<br>Candle Close: '+close.toFixed(2)+'<br><span class="yellow">Entry आधी Retest, SL आणि Risk तपासा.</span>';}
+    else{result.innerHTML='<span class="yellow">NO CONFIRMED BREAKOUT</span><br>Price अजूनही Range मध्येच आहे.<br>Spot: '+spot.toFixed(2); }
 }
-
-class _TradingScreenState extends State<TradingScreen> {
-  String idx = "BANK NIFTY";
-  Map<String,String> map = {"NIFTY 50":"^NSEI","BANK NIFTY":"^NSEBANK","SENSEX":"^BSESN"};
-  double p=0,h=0,l=0;
-  String msg="Loading...";
-  bool load=true;
-
-  @override
-  void initState(){super.initState(); getData();}
-
-  getData() async {
-    setState((){load=true; msg="Fetching...";});
-    try{
-      String sym=map[idx]!;
-      var url=Uri.parse('https://query1.finance.yahoo.com/v8/finance/chart/$sym?range=5d&interval=1d');
-      var r=await http.get(url, headers:{'User-Agent':'Mozilla/5.0'});
-      if(r.statusCode==200){
-        var d=jsonDecode(r.body);
-        var res=d['chart']['result'][0];
-        var meta=res['meta'];
-        var q=res['indicators']['quote'][0];
-        var closes=q['close'] as List;
-        var highs=q['high'] as List;
-        var lows=q['low'] as List;
-        double c=0,h1=0,l1=0;
-        for(int i=closes.length-1;i>=0;i--){ if(closes[i]!=null){c=(closes[i] as num).toDouble(); break;}}
-        for(int i=highs.length-1;i>=0;i--){ if(highs[i]!=null){h1=(highs[i] as num).toDouble(); break;}}
-        for(int i=lows.length-1;i>=0;i--){ if(lows[i]!=null){l1=(lows[i] as num).toDouble(); break;}}
-        if(c==0) c=(meta['regularMarketPrice'] as num).toDouble();
-        setState((){p=c; h=h1==0?c:h1; l=l1==0?c:l1; msg="LIVE";});
-      } else { setState(()=>msg="Error ${r.statusCode}"); }
-    }catch(e){ setState(()=>msg="Error $e"); }
-    setState(()=>load=false);
-  }
-
-  @override
-  Widget build(BuildContext context){
-    double pp=(h+l+p)/3;
-    double r1=2*pp-l; double s1=2*pp-h;
-    double r2=pp+(h-l); double s2=pp-(h-l);
-    double r3=h+2*(pp-l); double s3=l-2*(h-pp);
-    return Scaffold(
-      appBar: AppBar(title: Text("Trading Eye - $idx")),
-      body: load?Center(child:CircularProgressIndicator()):Padding(
-        padding:EdgeInsets.all(16),
-        child:Column(children:[
-          DropdownButton(value:idx, isExpanded:true, items:map.keys.map((e)=>DropdownMenuItem(value:e, child:Text(e))).toList(), onChanged:(v){setState(()=>idx=v!); getData();}),
-          SizedBox(height:10), Text(msg, style:TextStyle(color:Colors.green)),
-          SizedBox(height:10), Text("${p.toStringAsFixed(2)}", style:TextStyle(fontSize:42, fontWeight:FontWeight.bold, color:Colors.cyanAccent)),
-          Text("H:${h.toStringAsFixed(2)}  L:${l.toStringAsFixed(2)}"),
-          SizedBox(height:20),
-          _box("R3",r3,Colors.red.shade900), _box("R2",r2,Colors.red.shade400), _box("R1",r1,Colors.red.shade200),
-          _box("PP",pp,Colors.yellow, true),
-          _box("S1",s1,Colors.green.shade200), _box("S2",s2,Colors.green.shade400), _box("S3",s3,Colors.green.shade900),
-          SizedBox(height:20),
-          ElevatedButton(onPressed:getData, child:Text("Refresh"), style:ElevatedButton.styleFrom(minimumSize:Size(double.infinity,50))),
-        ]),
-      ),
-    );
-  }
-  Widget _box(String n,double v,Color c,[bool isPP=false]){
-    return Container(margin:EdgeInsets.symmetric(vertical:4), padding:EdgeInsets.all(12), decoration:BoxDecoration(color:c.withOpacity(0.2), border:Border.all(color:c), borderRadius:BorderRadius.circular(8)), child:Row(mainAxisAlignment:MainAxisAlignment.spaceBetween, children:[Text(n, style:TextStyle(color:c, fontWeight:FontWeight.bold, fontSize:isPP?18:14)), Text(v.toStringAsFixed(2), style:TextStyle(fontWeight:FontWeight.bold, fontSize:isPP?18:14))]));
-  }
+function calculatePremium(){
+    const premium=Number(document.getElementById("premium").value);
+    const slP=Number(document.getElementById("slPercent").value);
+    const rr=Number(document.getElementById("rr").value);
+    const res=document.getElementById("premiumResult");
+    if(!premium||!slP||!rr){res.innerHTML='<span class="yellow">Premium / SL / RR भरा.</span>';return;}
+    const sl=premium*(1-slP/100);
+    const target1=premium+(premium-sl)*rr;
+    const target2=premium+(premium-sl)*rr*1.5;
+    res.innerHTML='Entry: ₹'+premium.toFixed(2)+'<br><span class="red">SL: ₹'+sl.toFixed(2)+' ('+slP+'%)</span><br><span class="green">Target 1 (1:'+rr+'): ₹'+target1.toFixed(2)+'</span><br><span class="green">Target 2: ₹'+target2.toFixed(2)+'</span><br><span class="yellow">Risk: ₹'+(premium-sl).toFixed(2)+' Reward: ₹'+(target1-premium).toFixed(2)+'</span>';
 }
+</script>
+</body>
+</html>

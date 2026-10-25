@@ -1,17 +1,26 @@
-name: trading_eye
-description: BankNifty Trading Eye
-publish_to: 'none'
-version: 1.0.0+1
-environment:
-  sdk: ">=3.0.0 <4.0.0"
-dependencies:
-  flutter:
-    sdk: flutter
-  http: ^1.2.0
-  cupertino_icons: ^1.0.6
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
-  flutter_lints: ^3.0.0
-flutter:
-  uses-material-design: true
+name: Build APK
+on:
+  push:
+    branches: [ main ]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.0'
+      - name: Fix project
+        run: |
+          rm -rf android
+          flutter create . --project-name trading_eye --platforms=android
+      - run: flutter pub add http
+      - run: flutter build apk --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TradingEye-APK
+          path: build/app/outputs/flutter-apk/app-release.apk
